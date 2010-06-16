@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+    <head>
+	<title>Regex0r Extension Bar</title>
+	<script type="text/javascript">
+	    function runSearch() {
+		var query = document.getElementById("query").value;
+
+		if (query !== "") {
+		    safari.application.activeBrowserWindow.activeTab.page
+			.dispatchMessage("regexSearch", {
+				searchString: query,
+				caseSensitive: false
+			    });
+		}
+	    }
+
+	    // safari.self.browserWindow.addEventListener("message", hypotheticalMsgHandler, false);
+	</script>
+    </head>
+    <body>
+	Regex:
+	&nbsp;&nbsp;
+	<input type=search id=query name=query value="" title="Enter a regular expression here.">
+
+	<input type=submit name=search value=Search onclick="runSearch()" />
+    </body>
+</html>
