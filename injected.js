@@ -1,93 +1,15 @@
 var documentText = null;
 var textNodes = null;
-var matchedNodes = null;
+var nodeOffsets = {};
+var nodesToReplace = [];
 
 var matchClass = "__regex0r_match";
+var matchContainerClass = "__regex0r_match_container";
 
 function handleMessage(e) {
     if (e.name === "regexSearch") {
 	runSearch(e.message);
     }
-}
-
-function getNextSearchableNode(node) {
-    if (textNodes == null) {
-	textNodes = document.evaluate("//body//text()[normalize-space(.) != '']",
-		document, null,
-		XPathResult.ORDERED_NODE_SNAPSHOT_TYPE);
-    }
-
-    if (node == null)
-	return textNodes.snapshotItem(0);
-
-    for (var i = 0; i < textNodes.snapshotLength-1; i++) {
-	if (textNodes.snapshotItem(i) === node)
-	    return textNodes.snapshotItem(i+1);
-    }
-
-    return null;
-}
-
-function getStringMatchLength(matchString, matchPosition, nodeText, nodePosition) {
-    var lengthNeeded = Math.min(matchString.length-matchPosition, nodeText.length - nodePosition);
-    return matchString.substring(matchPosition, matchPosition+lengthNeeded) ===
-	nodeText.substring(nodePosition, nodePosition+lengthNeeded) ? lengthNeeded : -1;
-}
-
-function getNextMatchingNode(matchString, previousNode) {
-    var node = previousNode;
-
-    console.log("ENTER");
-    while (node != null) {
-	var currentPosition = -1;
-	var text = node.nodeValue; //.trim();
-
-	console.log("gNMN: trying to match '" + matchString[0] + "' in " + text.substring(0, 20));
-	while ((currentPosition = text.indexOf(matchString[0], currentPosition+1)) != -1)
-	{
-	    console.log("With currentpos " + currentPosition);
-	    var matchLength = getStringMatchLength(matchString, 0, text, currentPosition);
-	    if (matchLength > 0) {
-		console.log("Yes indeed!");
-		return { match: node, start: currentPosition, length: matchLength };
-	    }
-	}
-
-	node = getNextSearchableNode(node);
-    }
-
-    return { match: null };
-}
-
-function selectMatchingNodes(matchString, matchPosition, currentNode, nodeStack) {
-    console.log("TOP: MATCHPOS: " + matchPosition);
-
-    // we win
-    if (matchPosition == matchString.length)
-	return true;
-
-    var elementText = currentNode.nodeValue; // .trim();
-
-    // if this is NOT the first element we're matching, must match at start of element
-    if (matchPosition > 0) {
-	var matchLength = getStringMatchLength(matchString, matchPosition, elementText, 0);
-	if (matchLength > 0) {
-	    nodeStack.push({match: currentNode, start: 0, length: matchLength });
-	    return selectMatchingNodes(
-		    matchString, matchPosition+matchLength,
-		    getNextSearchableNode(currentNode), nodeStack);
-	}
-    }
-
-    var nextMatch = getNextMatchingNode(matchString, currentNode);
-    if (nextMatch.match != null) {
-	nodeStack.push(nextMatch);
-
-	return selectMatchingNodes(matchString, matchPosition + nextMatch.length,
-		getNextSearchableNode(nextMatch.match), nodeStack);
-    }
-
-    return false;
 }
 
 function addClass(element, className) {
@@ -96,46 +18,144 @@ function addClass(element, className) {
 }
 
 function clearPreviousSearch() {
-    var matchingElts = document.getElementsByClassName(matchClass);
+    for (var i in nodesToReplace) {
+	var spanNode = nodesToReplace[i].span;
+	var textNode = nodesToReplace[i].text;
 
-    for (var i = 0; i < matchingElts.length; i++) {
-	var element = matchingElts[i];
-	var classes = element.className.split(" ");
-
-	console.log("Clearing... ");
-	console.log("Old class name: " + element.className);
-	var newClassName = classes.filter(function(c) { return c !== matchClass; });
-	element.className = newClassName.join(" ");
-
-	console.log("New class name: " + element.className);
+	spanNode.parentNode.replaceChild(textNode, spanNode);
     }
+
+    nodesToReplace = [];
+}
+
+function highlightMatchSegment(matchSegment) {
+    var node = matchSegment.node;
+    var start = matchSegment.start;
+    var length = matchSegment.length;
+
+    var nodeText = node.nodeValue;
+
+    var parentNode = node.parentNode;
+
+    var beforeText = nodeText.substring(0, start);
+    var matchingText = nodeText.substring(start, start+length);
+    var afterText = nodeText.substring(start+length);
+
+    var outerSpan = document.createElement("span");
+    outerSpan.className = matchContainerClass;
+
+    if (beforeText.length > 0) {
+	var beforeNode = document.createTextNode(beforeText);
+	outerSpan.appendChild(beforeNode);
+    }
+
+    var matchingSpan = document.createElement("span");
+    matchingSpan.className = matchClass;
+    matchingSpan.appendChild(document.createTextNode(matchingText));
+    outerSpan.appendChild(matchingSpan);
+
+    if (afterText.length > 0) {
+	var afterNode = document.createTextNode(afterText);
+	outerSpan.appendChild(afterNode);
+    }
+
+    nodesToReplace.push({span: outerSpan, text: node});
+    // note parameter order; FML.
+    parentNode.replaceChild(outerSpan, node);
+}
+
+function loadDocumentText() {
+    var textNodeList = document.evaluate("//body//text()",
+	    document, null,
+	    XPathResult.ORDERED_NODE_SNAPSHOT_TYPE);
+
+    var textNodes = [];
+    var text = [];
+
+    nodeOffsets = {};
+    var length = 0;
+    for (var i = 0; i < textNodeList.snapshotLength; i++) {
+	var node = textNodeList.snapshotItem(i);
+	textNodes.push(node);
+	text.push(node.nodeValue);
+
+	nodeOffsets[length] = node;
+	length += node.nodeValue.length;
+    }
+
+    documentText = text.join("");
+}
+
+function getMatchingNodes(startIndex, endIndex) {
+    var matchingNodes = [];
+
+    var startNodeIndex = startIndex;
+    while (nodeOffsets[startNodeIndex] === undefined) {
+	startNodeIndex--;
+    }
+    var startMatch = {
+	node: nodeOffsets[startNodeIndex],
+	start: startIndex - startNodeIndex,
+	length: Math.min(startIndex + nodeOffsets[startNodeIndex].length - startNodeIndex, endIndex-startIndex)
+    };
+    matchingNodes.push(startMatch);
+
+    var endNodeIndex = endIndex-1;
+    while (nodeOffsets[endNodeIndex] === undefined) {
+	endNodeIndex--;
+    }
+
+    var endMatch = {
+	node: nodeOffsets[endNodeIndex],
+	start: 0,
+	length: endIndex - endNodeIndex
+    };
+
+    var index = startIndex;
+    while (index < endNodeIndex) {
+	index++;
+	if (nodeOffsets[index] !== undefined) {
+	    matchingNodes.push({
+		node: nodeOffsets[index],
+		start: 0,
+		length: nodeOffsets[index].length
+	    });
+	}
+    }
+
+    if (endMatch.node != startMatch.node)
+	matchingNodes.push(endMatch);
+    return matchingNodes;
+}
+
+function highlightNodes(nodes) {
+    nodes.forEach(function(n) {
+	highlightMatchSegment(n);
+    });
 }
 
 function runSearch(query) {
-    if (documentText === null) {
-	documentText = document.documentElement.innerText;
-
-	//computeOffsets();
-    }
-
     clearPreviousSearch();
+
+    // need to do this for every search; contents may have changed
+    loadDocumentText();
+
 
     var modifiers = "g" + (query.caseSensitive ? "" : "i");
     var re = new RegExp(query.searchString, modifiers);
 
     var matches = documentText.match(re);
     var previousNode = null;
-    for (var match in matches) {
-	console.log("MATCHstring: " + matches[match]);
-	var nodeStack = [];
-	if (selectMatchingNodes(matches[match], 0, getNextSearchableNode(previousNode), nodeStack)) {
-	    for (var i in nodeStack) {
-		console.log(nodeStack[i]);
-		addClass(nodeStack[i].match.parentElement, matchClass);
-	    }
 
-	    previousNode = nodeStack[nodeStack.length-1].match;
-	}
+    var currentPosition = 0;
+    for (var i in matches) {
+	var match = matches[i];
+	var matchIndex = documentText.indexOf(match, currentPosition);
+
+	var matchingNodes = getMatchingNodes(matchIndex, matchIndex + match.length);
+	highlightNodes(matchingNodes);
+
+	currentPosition = matchIndex + match.length;
     }
 }
 
