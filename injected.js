@@ -22,7 +22,7 @@ function clearPreviousSearch() {
 	var spanNode = nodesToReplace[i].span;
 	var textNode = nodesToReplace[i].text;
 
-	spanNode.parentNode.replaceChild(textNode, spanNode);
+	spanNode.parentElement.replaceChild(textNode, spanNode);
     }
 
     nodesToReplace = [];
@@ -32,6 +32,7 @@ function highlightMatchSegment(matchSegment) {
     var node = matchSegment.node;
     var start = matchSegment.start;
     var length = matchSegment.length;
+    var offset = matchSegment.nodeOffset;
 
     var nodeText = node.nodeValue;
 
@@ -41,27 +42,39 @@ function highlightMatchSegment(matchSegment) {
     var matchingText = nodeText.substring(start, start+length);
     var afterText = nodeText.substring(start+length);
 
-    var outerSpan = document.createElement("span");
-    outerSpan.className = matchContainerClass;
-
+    var beforeNode = null;
     if (beforeText.length > 0) {
-	var beforeNode = document.createTextNode(beforeText);
-	outerSpan.appendChild(beforeNode);
+	beforeNode = document.createTextNode(beforeText);
+	nodeOffsets[offset] = beforeNode;
     }
 
     var matchingSpan = document.createElement("span");
+    var innerTextNode = document.createTextNode(matchingText);
     matchingSpan.className = matchClass;
-    matchingSpan.appendChild(document.createTextNode(matchingText));
-    outerSpan.appendChild(matchingSpan);
+    matchingSpan.appendChild(innerTextNode);
+    nodeOffsets[offset+start] = innerTextNode;
 
+    var afterNode = null;
     if (afterText.length > 0) {
-	var afterNode = document.createTextNode(afterText);
-	outerSpan.appendChild(afterNode);
+	afterNode = document.createTextNode(afterText);
+	nodeOffsets[offset+start+length] = afterNode;
     }
 
-    nodesToReplace.push({span: outerSpan, text: node});
+    var succeedingNode = node;
+    if (afterNode != null) {
+	parentNode.insertBefore(afterNode, succeedingNode);
+	succeedingNode = afterNode;
+    }
+
+    parentNode.insertBefore(matchingSpan, succeedingNode);
+    if (beforeNode != null) {
+	parentNode.insertBefore(beforeNode, matchingSpan);
+    }
+
+    nodesToReplace.push({span: matchingSpan, text: innerTextNode});
+
     // note parameter order; FML.
-    parentNode.replaceChild(outerSpan, node);
+    parentNode.removeChild(node);
 }
 
 function loadDocumentText() {
@@ -96,7 +109,8 @@ function getMatchingNodes(startIndex, endIndex) {
     var startMatch = {
 	node: nodeOffsets[startNodeIndex],
 	start: startIndex - startNodeIndex,
-	length: Math.min(startIndex + nodeOffsets[startNodeIndex].length - startNodeIndex, endIndex-startIndex)
+	length: Math.min(startIndex + nodeOffsets[startNodeIndex].length - startNodeIndex, endIndex-startIndex),
+	nodeOffset: startNodeIndex
     };
     matchingNodes.push(startMatch);
 
@@ -108,30 +122,26 @@ function getMatchingNodes(startIndex, endIndex) {
     var endMatch = {
 	node: nodeOffsets[endNodeIndex],
 	start: 0,
-	length: endIndex - endNodeIndex
+	length: endIndex - endNodeIndex,
+	nodeOffset: endNodeIndex
     };
 
-    var index = startIndex;
+    var index = startIndex+1;
     while (index < endNodeIndex) {
-	index++;
 	if (nodeOffsets[index] !== undefined) {
 	    matchingNodes.push({
 		node: nodeOffsets[index],
 		start: 0,
-		length: nodeOffsets[index].length
+		length: nodeOffsets[index].length,
+		nodeOffset: index
 	    });
 	}
+	index++;
     }
 
     if (endMatch.node != startMatch.node)
 	matchingNodes.push(endMatch);
     return matchingNodes;
-}
-
-function highlightNodes(nodes) {
-    nodes.forEach(function(n) {
-	highlightMatchSegment(n);
-    });
 }
 
 function runSearch(query) {
@@ -140,8 +150,9 @@ function runSearch(query) {
     // need to do this for every search; contents may have changed
     loadDocumentText();
 
-
-    var modifiers = "g" + (query.caseSensitive ? "" : "i");
+    var modifiers = "g" +
+	(query.caseInsensitive ? "i" : "") +
+	(query.multiLine ? "m" : "");
     var re = new RegExp(query.searchString, modifiers);
 
     var matches = documentText.match(re);
@@ -152,11 +163,21 @@ function runSearch(query) {
 	var match = matches[i];
 	var matchIndex = documentText.indexOf(match, currentPosition);
 
+	console.log("MATCH: " + match);
 	var matchingNodes = getMatchingNodes(matchIndex, matchIndex + match.length);
-	highlightNodes(matchingNodes);
+
+	matchingNodes.forEach(highlightMatchSegment);
+
+	console.log("OFFSETS: ");
+	for (var offset in nodeOffsets) {
+	    console.log(offset + " -> [" + nodeOffsets[offset].nodeValue + "]");
+	}
 
 	currentPosition = matchIndex + match.length;
     }
+
+    console.log("sending MSG.");
+    safari.self.tab.dispatchMessage("resultCount", { count: matches.length });
 }
 
 safari.self.addEventListener("message", handleMessage, false);
