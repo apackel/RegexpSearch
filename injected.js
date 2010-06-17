@@ -156,12 +156,19 @@ function runSearch(query) {
 
     var match;
     var matchCount = 0;
+    var isFirstMatch = true;
     while ((matchInfo = re.exec(documentText)) !== null) {
 	var match = matchInfo[0];
 
 	var matchingNodes = getMatchingNodes(matchInfo.index, matchInfo.index + match.length);
 	matchingNodes.forEach(highlightMatchSegment);
 	matchCount++;
+
+	if (isFirstMatch) {
+	    var newNode = nodeOffsets[matchingNodes[0].nodeOffset];
+	    newNode.parentNode.scrollIntoView();
+	    isFirstMatch = false;
+	}
     }
 
     safari.self.tab.dispatchMessage("resultCount", { count: matchCount });

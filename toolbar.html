@@ -26,35 +26,58 @@
 		    results.textContent = count == 0 ? "No matches" :
 			count == 1 ? "1 match" :
 			(count + " matches");
-		    results.style += " visibility: visible;";
+
+		    results.style.color = count > 0 ? "blue" : "black";
 		}
 	    }
 
-	    safari.self.browserWindow.addEventListener("message", handleMessage, false);
+	    function handleEnter(e) {
+		console.log("OHAI: " + e.keyCode);
+		if (e.keyCode == 13) {
+		    document.getElementById("search").click();
+		}
+	    }
+
+	    function toggleSearchDisabled() {
+		document.getElementById("search").disabled =
+		    document.getElementById("query").value === "" ? "disabled" : "";
+	    }
+
+	    function register() {
+		safari.self.browserWindow.addEventListener("message", handleMessage, false);
+	    }
 	</script>
 
 	<style type="text/css">
 	    #results {
 		color: blue;
 		font-weight: bold;
-		visibility: hidden;
+		text-align: right;
 	    }
 
-	    label {
-		margin-right: 2em;
+	    #query {
+		width: 200px;
+	    }
+
+	    input[type="checkbox"], #results {
+		margin-left: 20px;
+	    }
+
+	    body {
+		vertical-align: middle;
+		line-height: 100%;
+		padding: 3px 6px;
 	    }
 	</style>
     </head>
-    <body>
-	Regexp:
-	&nbsp;&nbsp;
-	/<input type=search id=query name=query value="" title="Enter a regular expression here.">/
+    <body onload="register()">
+	/<input type=search id=query name=query value="" onkeydown="handleEnter(event)" onkeyup="toggleSearchDisabled()" title="Enter a regular expression here.">/
 
-	<input type=submit name=search value=Search onclick="runSearch()" />
-
-	<span id=results>No matches</span>
+	<input type=submit name=search id=search value="Search for Regexp" disabled onclick="runSearch()" />
 
 	<input type=checkbox id=case name=case checked=checked /> <label for=case>Case insensitive</label>
 	<input type=checkbox id=multiline name=multiline /> <label for=multiline>'^' and '$' match on any line</label>
+
+	<span id=results></span>
     </body>
 </html>
