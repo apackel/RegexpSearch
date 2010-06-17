@@ -7,7 +7,6 @@
 		// TODO: make straight quotes also match smart quotes oh god
 		var query = document.getElementById("query").value;
 
-		console.log("WTF");
 		if (query !== "") {
 		    safari.application.activeBrowserWindow.activeTab.page
 			.dispatchMessage("regexSearch", {
@@ -16,13 +15,11 @@
 				multiLine: document.getElementById("multiline").checked
 			    });
 		}
-		console.log("BYE");
 
 		document.getElementById("query").select();
 	    }
 
 	    function handleMessage(e) {
-		console.log("HELLO: " + e.name);
 		if (e.name === "resultCount") {
 		    var count = e.message.count;
 		    var results = document.getElementById("results");
@@ -42,18 +39,22 @@
 		font-weight: bold;
 		visibility: hidden;
 	    }
+
+	    label {
+		margin-right: 2em;
+	    }
 	</style>
     </head>
     <body>
 	Regexp:
 	&nbsp;&nbsp;
-	<input type=search id=query name=query value="" title="Enter a regular expression here.">
+	/<input type=search id=query name=query value="" title="Enter a regular expression here.">/
 
 	<input type=submit name=search value=Search onclick="runSearch()" />
 
-	<input type=checkbox id=case name=case checked=checked /> Case insensitive
-	<input type=checkbox id=multiline name=multiline /> Multi-line
+	<span id=results>No matches</span>
 
-	<span id=results>No results</span>
+	<input type=checkbox id=case name=case checked=checked /> <label for=case>Case insensitive</label>
+	<input type=checkbox id=multiline name=multiline /> <label for=multiline>'^' and '$' match on any line</label>
     </body>
 </html>

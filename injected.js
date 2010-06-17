@@ -14,7 +14,6 @@ function handleMessage(e) {
 
 function addClass(element, className) {
     element.className += " " + className;
-    console.log(element.nodeName + " NCL: " + element.className);
 }
 
 function clearPreviousSearch() {
@@ -155,29 +154,17 @@ function runSearch(query) {
 	(query.multiLine ? "m" : "");
     var re = new RegExp(query.searchString, modifiers);
 
-    var matches = documentText.match(re);
-    var previousNode = null;
+    var match;
+    var matchCount = 0;
+    while ((matchInfo = re.exec(documentText)) !== null) {
+	var match = matchInfo[0];
 
-    var currentPosition = 0;
-    for (var i in matches) {
-	var match = matches[i];
-	var matchIndex = documentText.indexOf(match, currentPosition);
-
-	console.log("MATCH: " + match);
-	var matchingNodes = getMatchingNodes(matchIndex, matchIndex + match.length);
-
+	var matchingNodes = getMatchingNodes(matchInfo.index, matchInfo.index + match.length);
 	matchingNodes.forEach(highlightMatchSegment);
-
-	console.log("OFFSETS: ");
-	for (var offset in nodeOffsets) {
-	    console.log(offset + " -> [" + nodeOffsets[offset].nodeValue + "]");
-	}
-
-	currentPosition = matchIndex + match.length;
+	matchCount++;
     }
 
-    console.log("sending MSG.");
-    safari.self.tab.dispatchMessage("resultCount", { count: matches.length });
+    safari.self.tab.dispatchMessage("resultCount", { count: matchCount });
 }
 
 safari.self.addEventListener("message", handleMessage, false);
