@@ -3,6 +3,8 @@
     <head>
 	<title>Regex0r Extension Bar</title>
 	<script type="text/javascript">
+	    var lastQuery = null;
+
 	    function runSearch() {
 		// TODO: make straight quotes also match smart quotes oh god
 		var query = document.getElementById("query").value;
@@ -20,7 +22,8 @@
 	    }
 
 	    function handleMessage(e) {
-		if (e.name === "resultCount") {
+		var query = document.getElementById("query").value;
+		if (e.name === "resultCount" && (lastQuery != query || e.message.count != 0)) {
 		    var count = e.message.count;
 		    var results = document.getElementById("results");
 		    results.textContent = count == 0 ? "No matches" :
@@ -28,6 +31,7 @@
 			(count + " matches");
 
 		    results.style.color = count > 0 ? "blue" : "black";
+		    lastQuery = query;
 		}
 	    }
 

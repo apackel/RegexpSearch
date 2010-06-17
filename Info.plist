@@ -5,9 +5,9 @@
 	<key>Author</key>
 	<string>Adrian Packel</string>
 	<key>CFBundleDisplayName</key>
-	<string>Regex0r</string>
+	<string>Regexp Search</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.yourcompany.regex0r</string>
+	<string>com.adrianpackel.regexpsearch</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleShortVersionString</key>
@@ -20,11 +20,11 @@
 		<array>
 			<dict>
 				<key>Filename</key>
-				<string>toolbar.html</string>
+				<string>regexp_toolbar.html</string>
 				<key>Identifier</key>
-				<string>regexToolbar</string>
+				<string>regexpToolbar</string>
 				<key>Label</key>
-				<string>Regex Toolbar</string>
+				<string>Regexp Toolbar</string>
 			</dict>
 		</array>
 	</dict>
@@ -34,14 +34,16 @@
 		<dict>
 			<key>Start</key>
 			<array>
-				<string>injected.js</string>
+				<string>regexp_injected.js</string>
 			</array>
 		</dict>
 		<key>Stylesheets</key>
 		<array>
-			<string>match.css</string>
+			<string>regexp_match.css</string>
 		</array>
 	</dict>
+	<key>Description</key>
+	<string>Allows searching webpages using regular expressions.</string>
 	<key>ExtensionInfoDictionaryVersion</key>
 	<string>1.0</string>
 	<key>Permissions</key>
@@ -52,5 +54,9 @@
 			<string>All</string>
 		</dict>
 	</dict>
+	<key>Update Manifest URL</key>
+	<string>http://adrianpackel.com/software/SafariExtensions.plist</string>
+	<key>Website</key>
+	<string>http://adrianpackel.com/software/regexpsearch</string>
 </dict>
 </plist>
